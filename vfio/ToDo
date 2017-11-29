@@ -1,0 +1,18 @@
+ 
+## nvidia-modprobe puts the nvidia driver in use but still not showing as provider in xrandr
+
+
+http://uk.download.nvidia.com/XFree86/Linux-x86/319.12/README/randr14.html -- read this
+
+To not load any modules for nvidia - use bumblebee (must be a cleaner blacklist solution for this? - see auto add devices config (xorg.conf.untested))
+
+Reloading is possible with proprietary driver BUT xserver need to be restarted :/
+
+Steps:
+
+ 1) Kill xserver (stop sddm)
+ 2) unload nvidia modules, nvidia_drm, nvidia_modeset, nvidia
+ 3) bind to vfio
+ 4) start x again
+
+ look into : nvidia-smi --gpu-reset // resets GPU

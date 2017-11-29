@@ -1,0 +1,79 @@
+#!/bin/bash
+VM_NAME=$1
+VM_ACTION=$2
+LOG="/etc/libvirt/hooks/hook.log"
+touch $LOG
+SCRIPT_PATH="/home/mabez/scripts/vfio"
+VM_IP="192.168.0.54"
+export PATH="$PATH:/home/mabez/programs/cpuset"
+
+TOTAL_CORES='0-15'
+TOTAL_CORES_MASK=FFFF #0b1111111111111111
+HOST_CORES='0-7'      # Cores reserved for host
+HOST_CORES_MASK=FF00  #0b111111100000000
+VIRT_CORES='8-15'     # Cores reserved for virtual machine(s)
+
+timestamp() {
+  date +"[%T]"
+}
+
+shield_vm() {
+	echo "$(timestamp)Isolated $VMNAME" >> $LOG
+        cset set system -c $HOST_CORES
+        cset proc --move --fromset=root --toset=system --threads --kthread --force
+}
+
+unshield_vm() {
+	echo "$(timestamp)Unshielded $VMNAME" >> $LOG
+	cset set -d system
+	# cset shield --reset
+}
+
+if [[ $VM_ACTION == 'prepare' ]];
+then
+	rc-service ckb-daemon stop
+	$SCRIPT_PATH/huge_pages.sh 1
+        $SCRIPT_PATH/virt_net.sh
+        $SCRIPT_PATH/vfio_bind.sh
+fi
+
+if [[ $VM_ACTION == 'started' ]];
+then
+	# Run custom scripts
+	#$SCRIPT_PATH/huge_pages.sh 1
+	#$SCRIPT_PATH/virt_net.sh
+	#$SCRIPT_PATH/vfio_bind.sh
+	su mabez -c "synergyc $VM_IP"
+	# Optimize perf
+	shield_vm
+	# Reduce VM jitter: https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
+        sysctl vm.stat_interval=120
+        sysctl -w kernel.watchdog=0
+        # the kernel's dirty page writeback mechanism uses kthread workers. They introduce
+        # massive arbitrary latencies when doing disk writes on the host and aren't
+        # migrated by cset. Restrict the workqueue to use only cpu 0.
+        echo $HOST_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
+        # THP can allegedly result in jitter. Better keep it off.
+        echo never > /sys/kernel/mm/transparent_hugepage/enabled
+        # Force P-states to P0
+        #echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        echo 0 > /sys/bus/workqueue/devices/writeback/numa
+fi
+if [[ $VM_ACTION == 'stopped' ]];
+then
+	# All VMs offline
+        sysctl vm.stat_interval=1
+        sysctl -w kernel.watchdog=1
+	unshield_vm
+        echo always > /sys/kernel/mm/transparent_hugepage/enabled
+        #echo powersave | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        echo 1 > /sys/bus/workqueue/devices/writeback/numa
+	echo $TOTAL_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
+        
+	# Run our tear down scripts
+	$SCRIPT_PATH/huge_pages.sh 0
+	$SCRIPT_PATH/kb_layout.sh
+	rc-service ckb-daemon start
+	killall synergyc
+fi
+
