@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -e
+# Replaces the Make opts section in /etc/portage/make.conf to a desired number of threads
+
+MAKE_PATH="/etc/portage/make.conf"
+THREADS="$1"
+
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   exit 1
+fi
+
+if [ -z "$THREADS" ]; then
+   echo "Missing argument, Thread count."
+   exit 1
+fi
+
+if sed -i.bak "s/^MAKEOPTS=.*/MAKEOPTS=\"-j${THREADS}\"/" $MAKE_PATH
+then
+   echo "Portage MAKEOPTS now set to \"-j${THREADS}\"."
+else
+   echo "Failed to set portage opts."
+fi
+
+

@@ -1,0 +1,14 @@
+# Need to create a overlay
+# Modify the Ebuild for xen to include my patches
+# c
+# c
+# c
+# c
+# c
+# c
+# c
+# c
+# Patches are all ready in /etc/portage/patches/app-emulation/xen
+#
+Did this instead, patched before compile
+https://forums.gentoo.org/viewtopic-p-25512.html

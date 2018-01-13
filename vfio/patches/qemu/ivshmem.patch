@@ -1,0 +1,20 @@
+diff --git a/hw/misc/ivshmem.c b/hw/misc/ivshmem.c
+index d1bb246d12..9c7e74ef12 100644
+--- a/hw/misc/ivshmem.c
++++ b/hw/misc/ivshmem.c
+@@ -758,10 +758,14 @@ static void ivshmem_msix_vector_use(IVShmemState *s)
+     }
+ }
+ 
++static void ivshmem_disable_irqfd(IVShmemState *s);
++
+ static void ivshmem_reset(DeviceState *d)
+ {
+     IVShmemState *s = IVSHMEM_COMMON(d);
+ 
++    ivshmem_disable_irqfd(s);
++
+     s->intrstatus = 0;
+     s->intrmask = 0;
+     if (ivshmem_has_feature(s, IVSHMEM_MSI)) {
+--
