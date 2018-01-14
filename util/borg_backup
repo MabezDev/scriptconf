@@ -1,11 +1,12 @@
 #!/bin/sh
 
-while getopts p:t:c: option
+while getopts p:t:c:e: option
 do
  case "${option}"
  in
  t) TYPE=${OPTARG};;
  p) REPO_PATH=${OPTARG};;
+ e) EXPORT_PATH=${OPTARG};;
  c) CUSTOM_BK_PATHS=${OPTARG};; # NYI
  esac
 done
@@ -38,6 +39,11 @@ export BORG_PASSPHRASE='mabez'
 
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+now () { date -u +"%Y-%m-%dT%H:%M:%S"; }
+web_sync () { 
+    echo "Syncing to gdrive"
+    rclone --config /home/mabez/.config/rclone/rclone.conf sync $EXPORT_PATH gdrive:/Backups/Gentoo
+}
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "Starting backup of $BK_PATHS"
@@ -45,6 +51,8 @@ info "Mounting /backups"
 # Backup the most important directories into an archive named after
 # the machine this script is currently running on:
 # When 2TB is installed start backing up VMS?
+
+ARCHIVE_NAME="$TYPE-$(hostname)-$(now)"
 
 borg create                         \
     --verbose                       \
@@ -75,8 +83,9 @@ borg create                         \
     --exclude '*.tmp'               \
     --exclude '/usr/portage/distfiles/*'               \
     --exclude '/home/*/downloads/*'  \
+    --exclude '/home/*/downloads/*'  \
                                     \
-    $REPO_PATH::"$TYPE-{hostname}-{now}"            \
+    $REPO_PATH::$ARCHIVE_NAME            \
     $BK_PATHS
 
 backup_exit=$?
@@ -90,7 +99,7 @@ info "Pruning repository"
 
 borg prune $REPO_PATH                         \
     --list                          \
-    --prefix '$TYPE-{hostname}-'          \
+    --prefix "$TYPE-$(hostname)"       \
     --show-rc                       \
     --keep-daily    7               \
     --keep-weekly   4               \
@@ -112,5 +121,13 @@ then
 fi
 
 info "Unmounting /backups"
+
+if [[ ! -z "$EXPORT_PATH" ]]; then
+    echo "Exporting $ARCHIVE_NAME to $EXPORT_PATH"
+    borg export-tar $REPO_PATH::$ARCHIVE_NAME "$EXPORT_PATH/$ARCHIVE_NAME.tar.gz"
+    web_sync
+fi
+
+echo "Backup complete."
 
 exit ${global_exit}
