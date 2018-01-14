@@ -19,7 +19,8 @@ fi
 case $TYPE in
     rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config";;
     home) BK_PATHS="/home/mabez" ;;
-    *) echo "-t must be 'rootfs' or 'home'" 
+    full) BK_PATHS="/" ;;
+    *) echo "-t must be 'rootfs' or 'home' or 'full'" 
        exit 1 ;;
 esac
     
@@ -40,9 +41,10 @@ info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "Starting backup of $BK_PATHS"
-
+info "Mounting /backups"
 # Backup the most important directories into an archive named after
 # the machine this script is currently running on:
+# When 2TB is installed start backing up VMS?
 
 borg create                         \
     --verbose                       \
@@ -53,10 +55,26 @@ borg create                         \
     --compression lz4               \
     --exclude-caches                \
     --exclude '/home/*/.cache/*'    \
-    --exclude '/home/*/.mozilla/*'    \
+    --exclude '/home/*/.mozilla/*'  \
     --exclude '/var/cache/*'        \
     --exclude '/var/tmp/*'          \
     --exclude '/var/log/*'          \
+    --exclude '/hugepages'          \
+    --exclude '/proc'               \
+    --exclude '/sys'                \
+    --exclude '/backup'             \
+    --exclude '/dev'                \
+    --exclude '/media'              \
+    --exclude '/tmp'                \
+    --exclude '/cpusets'            \
+    --exclude '/mnt'                \
+    --exclude '/run'                \
+    --exclude '/vms'                \
+    --exclude '*.o'                 \
+    --exclude '*.bak'               \
+    --exclude '*.tmp'               \
+    --exclude '/usr/portage/distfiles/*'               \
+    --exclude '/home/*/downloads/*'  \
                                     \
     $REPO_PATH::"$TYPE-{hostname}-{now}"            \
     $BK_PATHS
@@ -92,5 +110,7 @@ if [ ${global_exit} -gt 1 ];
 then
     info "Backup and/or Prune finished with an error"
 fi
+
+info "Unmounting /backups"
 
 exit ${global_exit}
