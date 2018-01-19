@@ -1,0 +1,8 @@
+<qemu:commandline>
+    <qemu:arg value='-device'/>
+        <qemu:arg value='ivshmem-doorbell,chardev=ivshmem,vectors=1'/>
+	    <qemu:arg value='-chardev'/>
+	        <qemu:arg value='socket,path=/tmp/ivshmem_socket,id=ivshmem'/>
+		    <qemu:env name='QEMU_AUDIO_DRV' value='pa'/>
+		        <qemu:env name='QEMU_PA_SERVER' value='/run/user/1000/pulse/native'/>
+			  </qemu:commandline>

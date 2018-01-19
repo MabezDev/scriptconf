@@ -10,7 +10,7 @@ SCRIPT_PATH="/home/mabez/scripts/vfio"
 VM_IP="192.168.0.54"
 
 # List of VMS where performance is critical
-VMS_FOR_SHIELDING="win10-nvme win10-kvmfr macos"
+VMS_FOR_SHIELDING="win10 win10-nvme win10-kvmfr macos"
 
 # Ryzen 16 threads
 TOTAL_CORES='0-15'
@@ -24,7 +24,8 @@ prepare(){
 		echo "Running prepare for $VM_NAME" >> $LOG
 		rc-service ckb-daemon stop
 		$SCRIPT_PATH/huge_pages.sh 1
-	    $SCRIPT_PATH/vfio_bind.sh
+	        #sleep 0.5
+		#$SCRIPT_PATH/vfio_bind.sh
 	fi
 	# All VM's need networking
     $SCRIPT_PATH/virt_net.sh
@@ -65,7 +66,6 @@ stop(){
 	        
 		# Run our tear down scripts
 		$SCRIPT_PATH/huge_pages.sh 0
-		$SCRIPT_PATH/kb_layout.sh
 		rc-service ckb-daemon start
 		killall synergyc
 	fi

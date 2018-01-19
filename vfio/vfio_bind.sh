@@ -23,3 +23,11 @@ echo $nvmeid > /sys/bus/pci/drivers/vfio-pci/new_id
 echo $nvmebusid > /sys/bus/pci/devices/$nvmebusid/driver/unbind
 echo $nvmebusid > /sys/bus/pci/drivers/vfio-pci/bind
 echo $nvmeid > /sys/bus/pci/drivers/vfio-pci/remove_id
+
+# usb drive
+#usbbusid="0000:09:00.3"
+#usbid="1022 145c"
+#echo $usbid > /sys/bus/pci/drivers/vfio-pci/new_id
+#echo $usbbusid > /sys/bus/pci/devices/$usbbusid/driver/unbind
+#echo $usbbusid > /sys/bus/pci/drivers/vfio-pci/bind
+#echo $usbid > /sys/bus/pci/drivers/vfio-pci/remove_id
