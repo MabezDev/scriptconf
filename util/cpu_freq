@@ -1,0 +1,55 @@
+#!/bin/bash
+
+#
+#	This script should 1:1 match the serial strings sent by the app
+#
+
+
+while getopts s:n:f: option
+do
+ case "${option}"
+  in
+   s) START=${OPTARG};;
+   n) NUM=${OPTARG};;
+   f) FREQ=${OPTARG};;
+esac
+done
+
+if [ -z "$START" ]; then
+    echo "Missing -s, specify the cpu to start from"
+    exit 1
+fi
+
+if [ -z "$NUM" ]; then 
+    echo "Missing -n, Missing number of cpus to apply"
+    exit 1
+fi
+
+if [ -z "$FREQ" ]; then
+    echo "Must specifcy a frequency to use in hertz"
+    exit 1
+fi
+
+END=$(($START + $NUM))
+
+echo "Setting CPUS [$START-$END] to $FREQ hz"
+
+COUNT=$START
+
+#until [ "$COUNTER" -lt "$END" ]; do
+#    echo "$COUNTER"
+#    let COUNTER=$COUNTER+1
+#done
+
+for((i=$START;i<=$END;++i)) do
+   echo "Setting /sys/devices/system/cpu/cpu$i/cpufreq/scaling_min_freq to $FREQ"
+   echo -n "$FREQ" > "/sys/devices/system/cpu/cpu$i/cpufreq/scaling_min_freq"
+done
+
+
+
+
+
+
+
+

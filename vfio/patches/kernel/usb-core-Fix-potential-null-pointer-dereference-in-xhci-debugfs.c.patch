@@ -1,0 +1,43 @@
+From 811aad86287e78879b7e7f28e0c266bcd2a2f73e Mon Sep 17 00:00:00 2001
+From: Mathias Nyman <mathias.nyman@linux.intel.com>
+Date: Fri, 8 Dec 2017 18:50:18 +0200
+Subject: [PATCH] xhci: Only free xhci_virt_device->debugfs_private if device
+ is freed
+
+freeing device is conditional, we otherwise might end up with a
+xhci virt_device that doesnt have a valid debugs_private pointer.
+For testing only
+
+Signed-off-by: Mathias Nyman <mathias.nyman@linux.intel.com>
+---
+ drivers/usb/host/xhci.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/usb/host/xhci.c b/drivers/usb/host/xhci.c
+index 2424d30..da6dbe3 100644
+--- a/drivers/usb/host/xhci.c
++++ b/drivers/usb/host/xhci.c
+@@ -3525,8 +3525,6 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
+ 	struct xhci_slot_ctx *slot_ctx;
+ 	int i, ret;
+ 
+-	xhci_debugfs_remove_slot(xhci, udev->slot_id);
+-
+ #ifndef CONFIG_USB_DEFAULT_PERSIST
+ 	/*
+ 	 * We called pm_runtime_get_noresume when the device was attached.
+@@ -3555,8 +3553,10 @@ static void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
+ 	}
+ 
+ 	ret = xhci_disable_slot(xhci, udev->slot_id);
+-	if (ret)
++	if (ret) {
++		xhci_debugfs_remove_slot(xhci, udev->slot_id);
+ 		xhci_free_virt_device(xhci, udev->slot_id);
++	}
+ }
+ 
+ int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id)
+-- 
+2.7.4
+

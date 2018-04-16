@@ -1,4 +1,8 @@
-#!/bin/sh
+#!/bin/bash
+
+LOG="/var/log/backup.log"
+
+exec > >(tee -a $LOG) 2>&1
 
 while getopts p:t:c:e: option
 do
@@ -55,7 +59,6 @@ info "Mounting /backups"
 ARCHIVE_NAME="$TYPE-$(hostname)-$(now)"
 
 borg create                         \
-    --verbose                       \
     --filter AME                    \
     --list                          \
     --stats                         \
