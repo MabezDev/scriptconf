@@ -1,0 +1,14 @@
+diff --git a/hw/i386/acpi-build.c b/hw/i386/acpi-build.c                                                     
+index 3cf2a16..53d6848 100644
+--- a/hw/i386/acpi-build.c
++++ b/hw/i386/acpi-build.c
+@@ -184,6 +184,8 @@ static void acpi_get_pm_info(AcpiPmInfo *pm)
+         pm->fadt.reset_val = 0xf;
+         pm->fadt.flags |= 1 << ACPI_FADT_F_RESET_REG_SUP;
+         pm->cpu_hp_io_base = ICH9_CPU_HOTPLUG_IO_BASE;
++        /* High Sierra requires fadt ver 1 */
++        pm->fadt.rev = 1;
+     }
+     assert(obj);
+ 
+

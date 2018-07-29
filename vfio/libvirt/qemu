@@ -11,10 +11,10 @@ exec > >(tee -a $LOG) 2>&1
 VM_NAME=$1
 VM_ACTION=$2
 SCRIPT_PATH="/home/mabez/scripts/vfio"
-VM_IP="192.168.0.54"
+VM_IP="192.168.0.79"
 
 # List of VMS where performance is critical
-VMS_FOR_SHIELDING="win10 win10-nvme win10-kvmfr macos vfio-q35-win10"
+VMS_FOR_SHIELDING="win10 win10-nvme win10-kvmfr macos macosHS vfio-q35-win10 win10-nvme-q35-native"
 
 # Ryzen 16 threads
 TOTAL_CORES='0-15'
@@ -27,6 +27,9 @@ prepare(){
 	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
 		echo "Running prepare for $VM_NAME" >> $LOG
 		rc-service ckb-daemon stop
+		sync
+		echo 3 > /proc/sys/vm/drop_caches
+		echo 1 > /proc/sys/vm/compact_memory
 		$SCRIPT_PATH/huge_pages.sh 1
 		# Turn off our display that we are using for the VM!
 		su mabez -c "DISPLAY=:0 xrandr --output DVI-0 --off"
@@ -51,8 +54,11 @@ start(){
 	    # massive arbitrary latencies when doing disk writes on the host and aren't
 	    # migrated by cset. Restrict the workqueue to use only cpu 0.
 	    echo $HOST_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
+	    echo $HOST_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
 	    # THP can allegedly result in jitter. Better keep it off.
 	    echo never > /sys/kernel/mm/transparent_hugepage/enabled
+	    echo never >/sys/kernel/mm/transparent_hugepage/defrag
+
 	    # Force P-states to P0
 	    # echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 	    echo 0 > /sys/bus/workqueue/devices/writeback/numa
@@ -62,14 +68,14 @@ start(){
 stop(){
 	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
 		unshield_vm
-		sleep 0.5 # make sure threads are moved before trying to reinit hardware (can cause some issues)
+		sleep 1 # make sure threads are moved before trying to reinit hardware (can cause some issues)
 	    sysctl vm.stat_interval=1
 	    # sysctl -w kernel.watchdog=1
 	    echo always > /sys/kernel/mm/transparent_hugepage/enabled
 	    #echo powersave | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 	    echo 1 > /sys/bus/workqueue/devices/writeback/numa
 		echo $TOTAL_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
-	        
+	        echo $TOTAL_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
 		# Run our tear down scripts
 		$SCRIPT_PATH/huge_pages.sh 0
 		rc-service ckb-daemon start
