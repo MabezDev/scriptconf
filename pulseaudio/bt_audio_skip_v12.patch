@@ -1,0 +1,141 @@
+diff --git a/src/modules/bluetooth/module-bluez5-device.c b/src/modules/bluetooth/module-bluez5-device.c
+index 2a36adfd..6eb30a67 100644
+--- a/src/modules/bluetooth/module-bluez5-device.c
++++ b/src/modules/bluetooth/module-bluez5-device.c
+@@ -681,26 +681,23 @@ static void update_buffer_size(struct userdata *u) {
+     if (ret == -1) {
+         pa_log_warn("Changing bluetooth buffer size: Failed to getsockopt(SO_SNDBUF): %s", pa_cstrerror(errno));
+     } else {
++        unsigned n;
+         int new_bufsize;
+ 
+-        /* Set send buffer size as small as possible. The minimum value is 1024 according to the
+-         * socket man page. The data is written to the socket in chunks of write_block_size, so
+-         * there should at least be room for two chunks in the buffer. Generally, write_block_size
+-         * is larger than 512. If not, use the next multiple of write_block_size which is larger
+-         * than 1024. */
+-        new_bufsize = 2 * u->write_block_size;
+-        if (new_bufsize < 1024)
+-            new_bufsize = (1024 / u->write_block_size + 1) * u->write_block_size;
+-
+-        /* The kernel internally doubles the buffer size that was set by setsockopt and getsockopt
+-         * returns the doubled value. */
+-        if (new_bufsize != old_bufsize / 2) {
+-            ret = setsockopt(u->stream_fd, SOL_SOCKET, SO_SNDBUF, &new_bufsize, len);
+-            if (ret == -1)
+-                pa_log_warn("Changing bluetooth buffer size: Failed to change from %d to %d: %s", old_bufsize / 2, new_bufsize, pa_cstrerror(errno));
+-            else
+-                pa_log_info("Changing bluetooth buffer size: Changed from %d to %d", old_bufsize / 2, new_bufsize);
+-        }
++        /* Set send buffer size as small as possible. The minimum value is 1024 according to
++         * the socket man page, so let's use the next multiple of write_block_size which is
++         * larger than 1024. If write_block_size is larger than 1024, use 2 * write_block_size. */
++        n = 1024 / u->write_block_size + 1;
++        if (n == 1)
++            n = 2;
++
++         new_bufsize = n * u->write_block_size;
++
++         ret = setsockopt(u->stream_fd, SOL_SOCKET, SO_SNDBUF, &new_bufsize, len);
++         if (ret == -1)
++             pa_log_warn("Changing bluetooth buffer size: Failed to change from %d to %d: %s", old_bufsize, new_bufsize, pa_cstrerror(errno));
++         else
++             pa_log_info("Changing bluetooth buffer size: Changed from %d to %d", old_bufsize, new_bufsize);
+     }
+ }
+ 
+@@ -916,7 +913,7 @@ static void setup_stream(struct userdata *u) {
+     pollfd->events = pollfd->revents = 0;
+ 
+     u->read_index = u->write_index = 0;
+-    u->started_at = 0;
++    u->started_at = pa_rtclock_now();
+     u->stream_setup_done = true;
+ 
+     if (u->source)
+@@ -1484,6 +1481,9 @@ static int write_block(struct userdata *u) {
+             return -1;
+     }
+ 
++    if (n_written == 0)
++        pa_log("Broken kernel: we got EAGAIN on write() after POLLOUT!");
++
+     return n_written;
+ }
+ 
+@@ -1531,6 +1531,7 @@ static void thread_func(void *userdata) {
+                 teardown_stream(u);
+                 blocks_to_write = 0;
+                 bytes_to_write = 0;
++                writable = false;
+                 pa_asyncmsgq_post(pa_thread_mq_get()->outq, PA_MSGOBJECT(u->msg), BLUETOOTH_MESSAGE_STREAM_FD_HUP, NULL, 0, NULL, NULL);
+             } else
+                 goto fail;
+@@ -1589,40 +1590,25 @@ static void thread_func(void *userdata) {
+                             goto fail;
+ 
+                         blocks_to_write -= result;
+-
+-                        /* writable controls whether we set POLLOUT when polling - we set it to
+-                         * false to enable POLLOUT. If there are more blocks to write, we want to
+-                         * be woken up immediately when the socket becomes writable. If there
+-                         * aren't currently any more blocks to write, then we'll have to wait
+-                         * until we've received more data, so in that case we only want to set
+-                         * POLLIN. Note that when we are woken up the next time, POLLOUT won't be
+-                         * set in revents even if the socket has meanwhile become writable, which
+-                         * may seem bad, but in that case we'll set POLLOUT in the subsequent
+-                         * poll, and the poll will return immediately, so our writes won't be
+-                         * delayed. */
+-                        if (blocks_to_write > 0)
+-                            writable = false;
++                        writable = false;
+                     }
+ 
+                 /* There is no source, we have to use the system clock for timing */
+                 } else {
+                     bool have_written = false;
+-                    pa_usec_t time_passed = 0;
+-                    pa_usec_t audio_sent = 0;
++                    pa_usec_t time_passed;
++                    pa_usec_t audio_sent;
+ 
+-                    if (u->started_at) {
+-                        time_passed = pa_rtclock_now() - u->started_at;
+-                        audio_sent = pa_bytes_to_usec(u->write_index, &u->sample_spec);
+-                    }
++                    time_passed = pa_rtclock_now() - u->started_at;
++                    audio_sent = pa_bytes_to_usec(u->write_index, &u->sample_spec);
+ 
+                     /* A new block needs to be sent. */
+                     if (audio_sent <= time_passed) {
+                         size_t bytes_to_send = pa_usec_to_bytes(time_passed - audio_sent, &u->sample_spec);
+ 
+-                        /* There are more than two blocks that need to be written. It seems that
+-                         * the socket has not been accepting data fast enough (could be due to
+-                         * hiccups in the wireless transmission). We need to discard everything
+-                         * older than two block sizes to keep the latency from growing. */
++                        /* There are more than two blocks that need to be written.
++                         * We cannot catch up, therefore discard everything older
++                         * than two block sizes. */
+                         if (bytes_to_send > 2 * u->write_block_size) {
+                             uint64_t skip_bytes;
+                             pa_memchunk tmp;
+@@ -1632,7 +1618,7 @@ static void thread_func(void *userdata) {
+                             skip_bytes = bytes_to_send - 2 * u->write_block_size;
+                             skip_usec = pa_bytes_to_usec(skip_bytes, &u->sample_spec);
+ 
+-                            pa_log_debug("Skipping %llu us (= %llu bytes) in audio stream",
++                            pa_log_warn("Skipping %llu us (= %llu bytes) in audio stream",
+                                         (unsigned long long) skip_usec,
+                                         (unsigned long long) skip_bytes);
+ 
+@@ -1666,8 +1652,7 @@ static void thread_func(void *userdata) {
+ 
+                         blocks_to_write -= result;
+                         writable = false;
+-                        if (result)
+-                            have_written = true;
++                        have_written = true;
+                     }
+ 
+                     /* If nothing was written during this iteration, either the stream

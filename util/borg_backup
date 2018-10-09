@@ -87,6 +87,7 @@ borg create                         \
     --exclude '/usr/portage/distfiles/*'               \
     --exclude '/home/*/downloads/*'  \
     --exclude '/home/*/downloads/*'  \
+    --exclude '/storage'            \
                                     \
     $REPO_PATH::$ARCHIVE_NAME            \
     $BK_PATHS

@@ -11,7 +11,9 @@ exec > >(tee -a $LOG) 2>&1
 VM_NAME=$1
 VM_ACTION=$2
 SCRIPT_PATH="/home/mabez/scripts/vfio"
-VM_IP="192.168.0.79"
+VM_IP="192.168.0.13"
+#VM_IP=$(ip addr show br0 | grep -Po 'inet \K[\d.]+')
+
 
 # List of VMS where performance is critical
 VMS_FOR_SHIELDING="win10 win10-nvme win10-kvmfr macos macosHS vfio-q35-win10 win10-nvme-q35-native"
@@ -27,21 +29,26 @@ prepare(){
 	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
 		echo "Running prepare for $VM_NAME" >> $LOG
 		rc-service ckb-daemon stop
-		sync
+		if df | grep -q storage; then
+                   umount /storage || exit 1 # dont start the VM if we fail to unmount the fs!
+		fi
+                sync
 		echo 3 > /proc/sys/vm/drop_caches
 		echo 1 > /proc/sys/vm/compact_memory
+		sync
 		$SCRIPT_PATH/huge_pages.sh 1
 		# Turn off our display that we are using for the VM!
 		su mabez -c "DISPLAY=:0 xrandr --output DVI-0 --off"
 	fi
 	# All VM's need networking
-    $SCRIPT_PATH/virt_net.sh
+        $SCRIPT_PATH/virt_net enp6s0
 }
 
 start(){
 	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
 		echo "$(timestamp) $VM_NAME is being shielded" >> $LOG
 		# Run custom scripts
+		echo "Synergy: Connecting to $VM_IP"
 		su mabez -c "synergyc $VM_IP"
 		# reset a USB device that causes issues
 
@@ -75,11 +82,14 @@ stop(){
 	    #echo powersave | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 	    echo 1 > /sys/bus/workqueue/devices/writeback/numa
 		echo $TOTAL_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
-	        echo $TOTAL_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
+	    echo $TOTAL_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
+		
 		# Run our tear down scripts
 		$SCRIPT_PATH/huge_pages.sh 0
 		rc-service ckb-daemon start
 		killall synergyc
+
+		mount /storage
 
 		# re-enable 144hz monintor - bash magic to run this asynchronously, so we dont hang if we have switched inputs
 		bash -c "su mabez -c 'DISPLAY=:0 /home/mabez/scripts/util/dual_144hz.sh </dev/null &>/dev/null &; disown'"

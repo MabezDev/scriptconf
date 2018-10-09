@@ -1,11 +1,17 @@
 #!/bin/bash
 
+DEV=$1
+
+if [ -z "$DEV" ]; then
+    echo "Missing network device name"
+    exit 1
+fi
 
 if ! ip link show br0 ; then
 	modprobe tun
 
 	ip link add br0 type bridge
-	ip link set dev enp6s0 master br0
+	ip link set dev $DEV master br0
 
 	rc-service net.br0 start
 
