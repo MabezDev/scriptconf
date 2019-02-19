@@ -1,0 +1,6 @@
+#! /bin/bash
+BINUTILS_VER=$(equery l sys-devel/binutils|cut -d- -f3-)
+GCC_VER=$(/usr/bin/gcc-config -c| cut -d- -f5)
+KERNEL_VER=$(equery l sys-kernel/linux-headers|cut -d- -f4-)
+LIBC_VER=$(equery l sys-libs/glibc|cut -d- -f3-)
+echo "crossdev --b $BINUTILS_VER --g $GCC_VER --k $KERNEL_VER --l $LIBC_VER -t arm-none-eabi"
