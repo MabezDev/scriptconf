@@ -27,81 +27,81 @@ GUEST_CORES_MASK=00FF
 VIRT_CORES='8-15'     # Cores reserved for virtual machine(s)
 
 prepare(){
-	# compact ram - defrag
-	sync
-	echo 3 > /proc/sys/vm/drop_caches
-	echo 1 > /proc/sys/vm/compact_memory
-	sync
-	
-	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
-		echo "Running prepare for $VM_NAME" >> $LOG
-		rc-service ckb-daemon stop
-		if df | grep -q storage; then
-                   umount /storage || exit 1 # dont start the VM if we fail to unmount the fs!
-		fi
-		$SCRIPT_PATH/huge_pages.sh 1
-		# Turn off our display that we are using for the VM! - then restart i3 to fix bars
-		su mabez -c "DISPLAY=:0 xrandr --output DVI-0 --off && i3-msg restart"
-	fi
-
-	# Reduce VM jitter: https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
-	sysctl vm.stat_interval=120
-	# sysctl -w kernel.watchdog=0
-	# the kernel's dirty page writeback mechanism uses kthread workers. They introduce
-	# massive arbitrary latencies when doing disk writes on the host and aren't
-	# migrated by cset. Restrict the workqueue to use only cpu 0.
-	echo $HOST_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
-	echo $HOST_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
-	# THP can allegedly result in jitter. Better keep it off.
-	echo never > /sys/kernel/mm/transparent_hugepage/enabled
-	echo never >/sys/kernel/mm/transparent_hugepage/defrag	
+    # compact ram - defrag
+    sync
+    echo 3 > /proc/sys/vm/drop_caches
+    echo 1 > /proc/sys/vm/compact_memory
+    sync
+    
+    if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
+        echo "Running prepare for $VM_NAME" >> $LOG
+        rc-service ckb-daemon stop
+        if df | grep -q storage; then
+            umount /storage || exit 1 # dont start the VM if we fail to unmount the fs!
+        fi
+        $SCRIPT_PATH/huge_pages.sh 1
+        # Turn off our display that we are using for the VM! - then restart i3 to fix bars
+        su mabez -c "DISPLAY=:0 xrandr --output DVI-0 --off && i3-msg restart"
+    fi
+    
+    # Reduce VM jitter: https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
+    sysctl vm.stat_interval=120
+    sysctl -w kernel.watchdog=0
+    # the kernel's dirty page writeback mechanism uses kthread workers. They introduce
+    # massive arbitrary latencies when doing disk writes on the host and aren't
+    # migrated by cset. Restrict the workqueue to use only cpu 0.
+    echo $HOST_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
+    echo $HOST_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
+    # THP can allegedly result in jitter. Better keep it off.
+    echo never > /sys/kernel/mm/transparent_hugepage/enabled
+    echo never >/sys/kernel/mm/transparent_hugepage/defrag
 }
 
 start(){
-	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
-		echo "$(timestamp) $VM_NAME is being shielded" >> $LOG
-		# Run custom scripts
-		echo "Synergy: Connecting to $VM_IP"
-		su mabez -c "synergyc $VM_IP"
-		# reset a USB device that causes issues
-
-		# Optimize perf
-		shield_vm
-
-	    # Force P-states to P0
-	    echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-	    echo 0 > /sys/bus/workqueue/devices/writeback/numa
-
-		# make sure irq's are only handled on guest cores
-		grep vfio /proc/interrupts | cut -b 3-4 | while read -r i ; do
-			echo "set mask $GUEST_CORES_MASK to irq $i"
-			echo "$GUEST_CORES_MASK" >/proc/irq/$i/smp_affinity
-		done
-	fi
+    if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
+        echo "$(timestamp) $VM_NAME is being shielded" >> $LOG
+        # Run custom scripts
+        echo "Synergy: Connecting to $VM_IP"
+        su mabez -c "synergyc $VM_IP"
+        
+        # Optimize perf
+        shield_vm
+        
+        # Force P-states to P0
+        echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        echo 0 > /sys/bus/workqueue/devices/writeback/numa
+        
+        # make sure irq's are only handled on guest cores
+        grep vfio /proc/interrupts | cut -b 3-4 | while read -r i ; do
+            echo "set mask $GUEST_CORES_MASK to irq $i"
+            echo "$GUEST_CORES_MASK" >/proc/irq/$i/smp_affinity
+        done
+    fi
 }
 
 stop(){
-	if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
-		unshield_vm
-		sleep 1 # make sure threads are moved before trying to reinit hardware (can cause some issues)
-	    sysctl vm.stat_interval=1
-	    # sysctl -w kernel.watchdog=1
-	    echo always > /sys/kernel/mm/transparent_hugepage/enabled
-	    echo ondemand | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
-	    echo 1 > /sys/bus/workqueue/devices/writeback/numa
-		echo $TOTAL_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
-	    echo $TOTAL_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
-		
-		# Run our tear down scripts
-		$SCRIPT_PATH/huge_pages.sh 0
-		rc-service ckb-daemon start
-		killall synergyc
-
-		mount /storage
-
-		# re-enable 144hz monintor - bash magic to run this asynchronously, so we dont hang if we have switched inputs
-		bash -c "su mabez -c 'DISPLAY=:0 /home/mabez/scripts/util/dual_144hz.sh </dev/null &>/dev/null &; disown'"
-	fi
+    if [[ "${VMS_FOR_SHIELDING}" == *$VM_NAME* ]]; then
+        unshield_vm
+        sleep 1 # make sure threads are moved before trying to reinit hardware (can cause some issues)
+        sysctl vm.stat_interval=1
+        sysctl -w kernel.watchdog=1
+        echo always > /sys/kernel/mm/transparent_hugepage/enabled
+        echo always >/sys/kernel/mm/transparent_hugepage/defrag
+        echo ondemand | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
+        echo 1 > /sys/bus/workqueue/devices/writeback/numa
+        echo $TOTAL_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
+        echo $TOTAL_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
+        
+        # Run our tear down scripts
+        $SCRIPT_PATH/huge_pages.sh 0
+        rc-service ckb-daemon start
+        killall synergyc
+        
+        mount /storage
+        
+        # re-enable 144hz monintor - bash magic to run this asynchronously, so we dont hang if we have switched inputs
+        bash -c "su mabez -c 'DISPLAY=:0 /home/mabez/scripts/util/dual_144hz.sh </dev/null &>/dev/null &; disown'"
+    fi
 }
 
 #
@@ -109,7 +109,7 @@ stop(){
 #
 
 timestamp() {
-  date +"[%T]"
+    date +"[%T]"
 }
 
 shield_vm() {
@@ -118,9 +118,9 @@ shield_vm() {
 }
 
 unshield_vm() {
-	echo "$(timestamp)Unshielded $VM_NAME" >> $LOG
-	python2 $CPUSET set -d system
-	# cset shield --reset
+    echo "$(timestamp)Unshielded $VM_NAME" >> $LOG
+    python2 $CPUSET set -d system
+    # cset shield --reset
 }
 
 #
@@ -128,14 +128,14 @@ unshield_vm() {
 #
 if [[ $VM_ACTION == 'prepare' ]];
 then
-	prepare
+    prepare
 fi
 if [[ $VM_ACTION == 'started' ]];
 then
-	start
+    start
 fi
 if [[ $VM_ACTION == 'stopped' ]];
 then
-	stop
+    stop
 fi
 

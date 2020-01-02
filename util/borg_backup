@@ -1,7 +1,8 @@
 #!/bin/bash
 
 LOG="/var/log/backup.log"
-
+# clean log before running
+echo "" -n > $LOG
 exec > >(tee -a $LOG) 2>&1
 
 while getopts p:t:c:e: option
@@ -46,7 +47,7 @@ info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 now () { date -u +"%Y-%m-%dT%H:%M:%S"; }
 web_sync () { 
     echo "Syncing to gdrive"
-    rclone --config /home/mabez/.config/rclone/rclone.conf sync $EXPORT_PATH gdrive:/Backups/Gentoo
+    rclone --config /home/mabez/.config/rclone/rclone.conf sync $EXPORT_PATH gdrive:/  # Backups/Gentoo, rclone has a root folder of Backups/Gentoo
 }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
