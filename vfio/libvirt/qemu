@@ -1,9 +1,7 @@
 #!/bin/bash
 
-export PATH="$PATH:/home/mabez/programs/cpuset"
 LOG="/etc/libvirt/hooks/hook.log"
 touch $LOG
-CPUSET=/home/mabez/programs/cpuset/cset
 
 # Direct all output to the logfile
 exec > >(tee -a $LOG) 2>&1
