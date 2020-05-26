@@ -32,6 +32,7 @@ if [ -f "$HOOKPATH" ]; then
     eval \""$HOOKPATH"\" "$@"
 elif [ -d "$HOOKPATH" ]; then
     while read file; do
+        echo "Executing hook: $file"
         eval \""$file"\" "$@"
     done <<< "$(find -L "$HOOKPATH" -maxdepth 1 -type f -executable -print;)"
 fi
