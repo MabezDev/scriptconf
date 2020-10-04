@@ -1,10 +1,5 @@
 #!/bin/bash
 
-LOG="/var/log/backup.log"
-# clean log before running
-echo "" -n > $LOG
-exec > >(tee -a $LOG) 2>&1
-
 while getopts p:t:c:e: option
 do
  case "${option}"
@@ -30,7 +25,10 @@ case $TYPE in
        exit 1 ;;
 esac
     
-
+LOG="/var/log/backup-$TYPE.log"
+# clean log before running
+echo "" -n > $LOG
+exec > >(tee -a $LOG) 2>&1
 
 echo "Using repo path: $REPO_PATH. Initialing a $TYPE backup."
 
@@ -45,17 +43,28 @@ export BORG_PASSPHRASE='mabez'
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 now () { date -u +"%Y-%m-%dT%H:%M:%S"; }
+notify () { su mabez -c "DISPLAY=:0 notify-send -t 3600000 \"$TYPE backup\" \"$1\""; }
 web_sync () { 
-    echo "Syncing to gdrive"
-    rclone --config /home/mabez/.config/rclone/rclone.conf sync $EXPORT_PATH gdrive:/  # Backups/Gentoo, rclone has a root folder of Backups/Gentoo
+    info "Syncing to gdrive"
+    notify "Pushing to remote"
+    # limit to upload speed
+    rclone --bwlimit 6M -P --stats 30s --config /home/mabez/.config/rclone/rclone.conf move --create-empty-src-dirs $EXPORT_PATH gdrive:/
+    # prune old backups
+    rclone --config /home/mabez/.config/rclone/rclone.conf --min-age 21d delete gdrive:/
 }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "Starting backup of $BK_PATHS"
+notify "started..."
 info "Mounting /backups"
 # Backup the most important directories into an archive named after
 # the machine this script is currently running on:
 # When 2TB is installed start backing up VMS?
+
+# we do this to acquire the 'lock' such that we wait for other scripts to finish
+# wait up to 15 minutes
+borg info $REPO_PATH --lock-wait 3600
+
 
 ARCHIVE_NAME="$TYPE-$(hostname)-$(now)"
 
@@ -66,30 +75,7 @@ borg create                         \
     --show-rc                       \
     --compression lz4               \
     --exclude-caches                \
-    --exclude '/home/*/.cache/*'    \
-    --exclude '/home/*/.mozilla/*'  \
-    --exclude '/var/cache/*'        \
-    --exclude '/var/tmp/*'          \
-    --exclude '/var/log/*'          \
-    --exclude '/hugepages'          \
-    --exclude '/proc'               \
-    --exclude '/sys'                \
-    --exclude '/backup'             \
-    --exclude '/dev'                \
-    --exclude '/media'              \
-    --exclude '/tmp'                \
-    --exclude '/cpusets'            \
-    --exclude '/mnt'                \
-    --exclude '/run'                \
-    --exclude '/vms'                \
-    --exclude '*.o'                 \
-    --exclude '*.bak'               \
-    --exclude '*.tmp'               \
-    --exclude '/usr/portage/distfiles/*'               \
-    --exclude '/home/*/downloads/*'  \
-    --exclude '/home/*/downloads/*'  \
-    --exclude '/home/*/programs/*'  \
-    --exclude '/storage'            \
+    --exclude-from /home/mabez/scripts/backup/excludes.txt \
                                     \
     $REPO_PATH::$ARCHIVE_NAME            \
     $BK_PATHS
@@ -120,21 +106,25 @@ global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
 if [ ${global_exit} -eq 1 ];
 then
     info "Backup and/or Prune finished with a warning"
+    notify "exited with code: ${global_exit}"
 fi
 
 if [ ${global_exit} -gt 1 ];
 then
     info "Backup and/or Prune finished with an error"
+    notify "exited with code: ${global_exit}"
 fi
 
-info "Unmounting /backups"
 
 if [[ ! -z "$EXPORT_PATH" ]]; then
     echo "Exporting $ARCHIVE_NAME to $EXPORT_PATH"
+    mkdir -p $EXPORT_PATH
     borg export-tar $REPO_PATH::$ARCHIVE_NAME "$EXPORT_PATH/$ARCHIVE_NAME.tar.gz"
     web_sync
 fi
 
-echo "Backup complete."
+info "Unmounting /backups"
+info "Backup complete."
+notify "Backup complete."
 
 exit ${global_exit}
