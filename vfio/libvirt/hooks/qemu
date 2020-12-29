@@ -28,6 +28,8 @@ HOOKPATH="$BASEDIR/qemu.d/$GUEST_NAME/$HOOK_NAME/$STATE_NAME"
 
 set -e # If a script exits with an error, we should as well.
 
+echo "Libvirt event for $GUEST_NAME: $HOOK_NAME/$STATE_NAME"
+
 if [ -f "$HOOKPATH" ]; then
     eval \""$HOOKPATH"\" "$@"
 elif [ -d "$HOOKPATH" ]; then

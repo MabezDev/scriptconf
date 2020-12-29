@@ -8,7 +8,7 @@ source /home/mabez/programs/vfio-isolate/bin/activate
 popts 17
 
 # undo the isolation
-vfio-isolate cpuset-delete /host.slice cpuset-delete /machine.slice
+vfio-isolate cpuset-delete /host.slice cpuset-delete /emu.slice cpuset-delete /machine.slice
 
 # undo
 vfio-isolate restore /tmp/undo_irq

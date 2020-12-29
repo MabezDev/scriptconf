@@ -22,6 +22,7 @@ sysctl vm.stat_interval=120
 # migrated by cset. Restrict the workqueue to use only cpu 0.
 echo $HOST_CORES_MASK > /sys/bus/workqueue/devices/writeback/cpumask
 echo $HOST_CORES_MASK > /sys/devices/virtual/workqueue/cpumask
+echo 0 > /sys/bus/workqueue/devices/writeback/numa
 
 # THP can allegedly result in jitter. Better keep it off.
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
