@@ -3,7 +3,7 @@
 ## Load the config file
 source "/etc/libvirt/hooks/kvm.conf"
 
-rc-service ckb-daemon start
+rc-service ckb-next-daemon start
 killall barrierc
 
 mount /storage

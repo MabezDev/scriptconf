@@ -6,8 +6,8 @@ driver=$1
 
 videoid="10de 1b06"
 audioid="10de 10ef"
-videobusid="0000:28:00.0"
-audiobusid="0000:28:00.1"
+videobusid="0000:08:00.0"
+audiobusid="0000:08:00.1"
 
 
 echo $videoid > /sys/bus/pci/drivers/$driver/new_id

@@ -1,0 +1,2 @@
+0x11 is benq hdmi
+0x03 is benq dvi
