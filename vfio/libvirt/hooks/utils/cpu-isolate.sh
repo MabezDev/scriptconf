@@ -1,7 +1,10 @@
 #!/bin/bash
 
+set -e
+
 LC_ALL=en_GB.UTF-8
 LANG=en_GB.UTF-8
+
 source /home/mabez/programs/vfio-isolate/bin/activate
 
 ## Load the config file
