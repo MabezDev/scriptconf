@@ -17,6 +17,13 @@ touch $LOG
 # Direct all output to the logfile
 exec > >(tee -a $LOG) 2>&1
 
+trap 'catch' ERR
+catch() {
+  notify "A hook has failed to execute - View $LOG for more details"
+}
+
+notify () { su mabez -c "DISPLAY=:0 notify-send -t 3600000 \"$GUEST_NAME\" \"$1\""; }
+
 GUEST_NAME="$1"
 HOOK_NAME="$2"
 STATE_NAME="$3"

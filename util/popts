@@ -16,6 +16,13 @@ if [ -z "$THREADS" ]; then
    exit 1
 fi
 
+grep -q "MAKEOPTS=" $MAKE_PATH 
+if [ $? -ne 0 ]
+then
+  echo "ERROR: make.conf does not contain MAKEOPTS - Nothing to do."
+  exit 1
+fi
+
 if sed -i.bak "s/^MAKEOPTS=.*/MAKEOPTS=\"-j${THREADS}\"/" $MAKE_PATH
 then
    echo "Portage MAKEOPTS now set to \"-j${THREADS}\"."

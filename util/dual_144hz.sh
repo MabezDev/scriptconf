@@ -11,4 +11,4 @@ if [[ "$(ddcutil -b "$VM_DISPLAY" getvcp 60 --terse | awk '{print $4}')" != "x$I
     ddcutil -b "$VM_DISPLAY" setvcp 60 "0x$HOST_INPUT"
 fi
 
-i3-msg restart
+i3-msg restart > /dev/null 2>&1
