@@ -34,4 +34,4 @@
 /home/*/development/rust/xtensa
 /home/*/development/rust/**/target
 /home/*/development/**/node_modules
-/home/*/.*
+/home/*/.*[!config,ssh]
