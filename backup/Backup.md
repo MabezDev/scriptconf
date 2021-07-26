@@ -13,8 +13,8 @@
 9) Edit /mnt/gentoo/etc/fstab to use the correct UUID for the partitions
 10) Chroot with `arch-chroot /mnt/gentoo` or manually
    - This will require folders like /proc to be made, for prooper chrooting
-   - This should take of everything: `for f in dev dev/pts proc sys; do mkdir -p /mnt/gentoo/$f; mount --rbind /$f /mnt/gentoo/$f ; done`
-   - Finally chroot with `chroot /mnt/gentoo`
+   - This should take of everything: `for f in dev dev/pts proc sys run; do mkdir -p /mnt/gentoo/$f; mount --rbind /$f /mnt/gentoo/$f ; done`
+   - Finally chroot with `chroot /mnt/gentoo /bin/bash`
 11) Refresh the grub
 12) If there are any HW changes make sure Kernel is configured correctly
 13) exit, unmount and reboot into the backup!

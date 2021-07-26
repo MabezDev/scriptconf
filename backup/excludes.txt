@@ -1,6 +1,0 @@
-*.o               
-*.old                
-*.rlib              
-*.rmeta           
-*.tmp 
-*.git

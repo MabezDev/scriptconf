@@ -76,7 +76,6 @@ borg create                         \
     --compression lz4               \
     --exclude-caches                \
     --patterns-from /home/mabez/scripts/backup/patterns.txt \
-    --exclude-from /home/mabez/scripts/backup/excludes.txt \
                                     \
     $REPO_PATH::$ARCHIVE_NAME       \
     $BK_PATHS
