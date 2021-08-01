@@ -1,6 +1,9 @@
 #!/bin/sh
 
-until xrandr --output DVI-D-0 --set TearFree on --primary --mode 1920x1080 --rate 144 --pos 0x0 --rotate normal --output HDMI-A-0 --set TearFree on --mode 2560x1440 --rate 144 --pos 1920x0 --rotate normal --output DisplayPort-0 --set TearFree on --mode 1920x1080 --pos 4480x0 --rotate normal
+# Allow use to use outputs from other card
+xrandr --setprovideroutputsource 1 0
+
+until xrandr --output DisplayPort-1-1 --set TearFree on --mode 2560x1440 --rate 144 --pos 0x0 --rotate normal --output HDMI-A-0 --set TearFree on --mode 2560x1440 --rate 144 --pos 2560x0 --rotate normal --output DVI-D-0 --set TearFree on --primary --mode 1920x1080 --rate 144 --pos 5120x0 --rotate normal
 do
   sleep 1
 done

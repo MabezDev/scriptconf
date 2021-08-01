@@ -29,3 +29,20 @@ echo 0 > /sys/bus/workqueue/devices/writeback/numa
 # THP can allegedly result in jitter. Better keep it off.
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
 echo never >/sys/kernel/mm/transparent_hugepage/defrag
+
+
+# Make sure vfio interrupts are processes on the respective GUEST cores, i.e if core 0 in the VM initiates an interrupt, it should be handled by the GUEST cores
+set +e # some writes may fail - ignore
+grep vfio /proc/interrupts | cut -b 3-4 | tail -n +2 | while read -r i ; do
+    echo "set mask $GUEST_CORES_MASK to irq $i"
+    echo "$GUEST_CORES_MASK" >/proc/irq/$i/smp_affinity
+done
+
+# Force any other IRQ's OFF of guest cores and onto host cores
+grep -v vfio /proc/interrupts | cut -b 3-4 | tail -n +2 | while read -r i ; do
+    if [ "$i" -ne "0" ]; then
+        echo "set mask $HOST_CORES_MASK to irq $i"
+        echo "$HOST_CORES_MASK" >/proc/irq/$i/smp_affinity
+    fi
+done
+set -e
