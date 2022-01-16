@@ -10,5 +10,7 @@ killall barrierc
 
 mount /storage
 
-# re-enable 144hz monintor - bash magic to run this asynchronously, so we dont hang if we have switched inputs
-bash -c "su mabez -c 'DISPLAY=:0 /home/mabez/scripts/util/dual_144hz.sh </dev/null &>/dev/null &; disown'"
+# add a timeout here, so that if the monitors are not connected we don't block libvirt from cleaning up
+set +e
+bash -c "timeout --preserve-status 10 su mabez -c 'DISPLAY=:0 /home/mabez/scripts/util/linux-monitors.sh && DISPLAY=:0 i3-msg restart'"
+set -e

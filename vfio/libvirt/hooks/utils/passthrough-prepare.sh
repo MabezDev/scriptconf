@@ -12,4 +12,4 @@ if df | grep -q storage; then
     umount /storage || exit 1 # dont start the VM if we fail to unmount the fs!
 fi
 
-su mabez -c "barrierc $VM_IP"
+su mabez -c "barrierc --disable-crypto $VM_IP"
