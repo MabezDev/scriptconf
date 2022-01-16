@@ -48,7 +48,7 @@ web_sync () {
     info "Syncing to gdrive"
     notify "Pushing to remote"
     # limit to upload speed
-    rclone --bwlimit 6M -P --stats 30s --config /home/mabez/.config/rclone/rclone.conf move --create-empty-src-dirs $EXPORT_PATH gdrive:/
+    rclone --bwlimit 6M -P --stats 30s --config /home/mabez/.config/rclone/rclone.conf move --create-empty-src-dirs --drive-use-trash=false $EXPORT_PATH gdrive:/
     # prune old backups
     rclone --config /home/mabez/.config/rclone/rclone.conf --min-age 21d delete gdrive:/
 }
@@ -62,7 +62,6 @@ info "Mounting /backups"
 # When 2TB is installed start backing up VMS?
 
 # we do this to acquire the 'lock' such that we wait for other scripts to finish
-# wait up to 15 minutes
 borg info $REPO_PATH --lock-wait 3600
 
 
