@@ -1,0 +1,10 @@
+# noisetorch module
+#
+# KERNEL & ATTR params should be changed for your device, as well as the user inside RUN
+
+# load noisetorch, it will use the default device or specifiy with an ID after -i
+ACTION=="add", KERNEL=="controlC3", SUBSYSTEM=="sound", ATTRS{idVendor}=="0c76", ATTRS{idProduct}=="161e", RUN+="/bin/su mabez -c 'noisetorch -i -t 25'" 
+
+# unload noisetorch after
+ACTION=="remove", KERNEL=="controlC3", SUBSYSTEM=="sound", ATTRS{idVendor}=="0c76", ATTRS{idProduct}=="161e", RUN+="/bin/su mabez -c 'noisetorch -u'" 
+
