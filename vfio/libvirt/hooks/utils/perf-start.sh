@@ -14,10 +14,19 @@ if pid=$(pidof $QEMU); then
     else
         echo "$(date) ERROR: real-time scheduling FAILED for $QEMU pid: $pid"
     fi
+    renice -n -20 $pid
+    if [ $? = 0 ]; then
+        echo "$(date) INFO: renice SET for $QEMU pid: $pid"
+    else
+        echo "$(date) ERROR: renice FAILED for $QEMU pid: $pid"
+    fi
 fi
 
 # Reduce VM jitter: https://www.kernel.org/doc/Documentation/kernel-per-CPU-kthreads.txt
 sysctl vm.stat_interval=120
+
+# Allow CPU threads to run for longer - this shouldn't cause issues because CPU threads have complete access to each core
+sysctl -w kernel.sched_rt_runtime_us=-1
 
 # the kernel's dirty page writeback mechanism uses kthread workers. They introduce
 # massive arbitrary latencies when doing disk writes on the host and aren't

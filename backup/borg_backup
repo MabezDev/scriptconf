@@ -19,8 +19,8 @@ fi
 
 case $TYPE in
     rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config";;
-    home) BK_PATHS="/home/mabez" ;;
-    full) BK_PATHS="/" ;;
+    home) BK_PATHS="/home/mabez" ARCHIVES_TO_KEEP="3";;
+    full) BK_PATHS="/" ARCHIVES_TO_KEEP="3";;
     *) echo "-t must be 'rootfs' or 'home' or 'full'" 
        exit 1 ;;
 esac
@@ -92,10 +92,7 @@ borg prune $REPO_PATH                         \
     --list                          \
     --prefix "$TYPE-$(hostname)"       \
     --show-rc                       \
-    --keep-daily    5               \
-
-# --keep-weekly   1               \
-# --keep-monthly  1               \
+    --keep-daily    $ARCHIVES_TO_KEEP
 
 prune_exit=$?
 
