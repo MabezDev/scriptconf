@@ -18,7 +18,7 @@ fi
 
 
 case $TYPE in
-    rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config";;
+    rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config" ARCHIVES_TO_KEEP="8";;
     home) BK_PATHS="/home/mabez" ARCHIVES_TO_KEEP="3";;
     full) BK_PATHS="/" ARCHIVES_TO_KEEP="3";;
     *) echo "-t must be 'rootfs' or 'home' or 'full'" 
@@ -67,7 +67,7 @@ borg info $REPO_PATH --lock-wait 3600
 
 ARCHIVE_NAME="$TYPE-$(hostname)-$(now)"
 
-borg create                         \
+borg create      \
     --filter AME                    \
     --list                          \
     --stats                         \
@@ -75,7 +75,6 @@ borg create                         \
     --compression lz4               \
     --exclude-caches                \
     --patterns-from /home/mabez/scripts/backup/patterns.txt \
-                                    \
     $REPO_PATH::$ARCHIVE_NAME       \
     $BK_PATHS
 
@@ -103,12 +102,14 @@ if [ ${global_exit} -eq 1 ];
 then
     info "Backup and/or Prune finished with a warning"
     notify "exited with code: ${global_exit}"
+    exit global_exit
 fi
 
 if [ ${global_exit} -gt 1 ];
 then
     info "Backup and/or Prune finished with an error"
     notify "exited with code: ${global_exit}"
+    exit global_exit
 fi
 
 

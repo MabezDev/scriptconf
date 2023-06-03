@@ -7,6 +7,8 @@ R /
 - /var/log/*
 - /var/run/*     
 - /var/lock/*
+- /var/lib/docker
+- /var/spool
 ! /hugepages         
 ! /proc              
 ! /sys               
