@@ -18,9 +18,9 @@ fi
 
 
 case $TYPE in
-    rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config" ARCHIVES_TO_KEEP="8";;
-    home) BK_PATHS="/home/mabez" ARCHIVES_TO_KEEP="3";;
-    full) BK_PATHS="/" ARCHIVES_TO_KEEP="3";;
+    rootfs) BK_PATHS="/etc /root /var /usr/local /usr/src/linux/.config" ARCHIVES_TO_KEEP="3";;
+    home) BK_PATHS="/home/mabez" ARCHIVES_TO_KEEP="2";;
+    full) BK_PATHS="/" ARCHIVES_TO_KEEP="1";;
     *) echo "-t must be 'rootfs' or 'home' or 'full'" 
        exit 1 ;;
 esac
@@ -30,7 +30,7 @@ LOG="/var/log/backup-$TYPE.log"
 echo "" -n > $LOG
 exec > >(tee -a $LOG) 2>&1
 
-echo "Using repo path: $REPO_PATH. Initialing a $TYPE backup."
+info "Using repo path: $REPO_PATH. Initialing a $TYPE backup."
 
 # Setting this, so the repo does not need to be given on the commandline:
 #export BORG_REPO=ssh://username@example.com:2022/~/backup/main
@@ -50,7 +50,7 @@ web_sync () {
     # limit to upload speed
     rclone --bwlimit 6M -P --stats 30s --config /home/mabez/.config/rclone/rclone.conf move --create-empty-src-dirs --drive-use-trash=false $EXPORT_PATH gdrive:/
     # prune old backups
-    rclone --config /home/mabez/.config/rclone/rclone.conf --min-age 21d delete gdrive:/
+    rclone --config /home/mabez/.config/rclone/rclone.conf --drive-use-trash=false --min-age 21d delete gdrive:/
 }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
@@ -67,6 +67,8 @@ borg info $REPO_PATH --lock-wait 3600
 
 ARCHIVE_NAME="$TYPE-$(hostname)-$(now)"
 
+info "Creating $REPO_PATH::$ARCHIVE_NAME"
+
 borg create      \
     --filter AME                    \
     --list                          \
@@ -74,7 +76,7 @@ borg create      \
     --show-rc                       \
     --compression lz4               \
     --exclude-caches                \
-    --patterns-from /home/mabez/scripts/backup/patterns.txt \
+    --exclude-from /home/mabez/scripts/backup/excludes.txt \
     $REPO_PATH::$ARCHIVE_NAME       \
     $BK_PATHS
 

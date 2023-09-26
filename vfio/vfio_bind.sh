@@ -1,10 +1,15 @@
 #!/bin/bash
 
 # gfx (1080ti)
-videoid="10de 1b06"
-audioid="10de 10ef"
-videobusid="0000:08:00.0"
-audiobusid="0000:08:00.1"
+#videoid="10de 1b06"
+#audioid="10de 10ef"
+#videobusid="0000:08:00.0"
+#audiobusid="0000:08:00.1"
+
+videoid="10de 2206"
+audioid="10de 1aef"
+videobusid="0a:00.0"
+audiobusid="0a:00.1"
 
 echo $videoid > /sys/bus/pci/drivers/vfio-pci/new_id
 echo $videobusid > /sys/bus/pci/devices/$videobusid/driver/unbind
